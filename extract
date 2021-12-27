@@ -1,0 +1,89 @@
+#!/usr/bin/perl
+
+# Usage: extract path/to/mbox
+# Looks for emails labeled with (prefix) "Personal" and separates
+# into separate mbox files in each subdirectory.  Base64 attachments
+# are pulled out into the same subdirectory.
+
+use strict;
+use warnings;
+use Digest::SHA1 qw/sha1_base64/;
+use MIME::Base64 qw/decode_base64/;
+
+my @lines = ();
+my $dest = '';
+my $filename = '';
+
+sub flush_email {
+  return unless @lines;
+  unless ($dest) { # only pulling out personal emails
+    @lines = ();
+    $filename = '';
+    return;
+  }
+  open FILE, '>>', "$dest/mail.mbox";
+  print FILE @lines;
+  close FILE;
+}
+
+$_ = <>;
+while (my $next = <>) {
+  if (/^From \d+\@xxx [A-Z][a-z][a-z] [A-Z][a-z][a-z] \d\d \d\d:\d\d:\d\d \+\d+ \d+\s*$/ and $next =~ /^X-GM-THRID: /) {
+    flush_email();
+  }
+  push @lines, $_;
+  chomp $_;
+  if (/^X-Gmail-Labels: (.*)$/) {
+    my $labels = $1;
+    chomp $labels;
+    while ($next =~ /^ /) {
+      push @lines, $next;
+      chomp $next;
+      $labels .= $next;
+      $next = <>;
+    }
+    my $personal = '';
+    for my $label (split /,/, $labels) {
+      if ($label =~ /^Personal/ and length($label) > length($personal)) {
+        $personal = $label;
+      }
+    }
+    $dest = $personal;
+    $dest =~ s/\s+(\/|$)//g;
+    $dest =~ s/\s+/_/g;
+    $dest =~ s/[^A-Za-z-_\/]//g;
+    system 'mkdir', '-p', $dest if $dest;
+  }
+  if (/^Content-Disposition: .*; filename="(.*)"/ and $dest
+     or /^Content-Disposition: .*;/ and $next =~ /^\s+filename="(.*)"/ and $dest) {
+    # handle attachment
+    print STDERR "Lost attachment $filename\n" if $filename;
+    $filename = "$dest/$1";
+  }
+  if (/^Content-Transfer-Encoding: ?base64/i and $filename) {
+    # Find a blank line
+    while ($next =~ /\S/) {
+      push @lines, $next;
+      $next = <>;
+    }
+    push @lines, $next;
+    my @att = ();
+    while ($next = <>) {
+      push @lines, $next;
+      last if $next =~ /^--/;
+      push @att, $next;
+    }
+    my $decoded = decode_base64(join '', @att);
+    my $digest = sha1_base64($decoded);
+    $digest =~ s|[/+]||g;
+    $digest = substr($digest, 0, 6);
+    $filename =~ s/(\.[^.]+)$/.$digest$1/;
+    open F, '>:raw', "$filename" or die "Could not open $filename";
+    print F $decoded;
+    close F;
+    $next = <>; # Before loop
+    print STDERR "Emitted attachment $filename\n";
+    $filename = '';
+  }
+  $_ = $next;
+}

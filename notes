@@ -1,0 +1,24 @@
+   1 Content-Transfer-Encoding: 8Bit
+   1 Content-Transfer-Encoding: 8bit+
+   4 Content-Transfer-Encoding: BASE64
+   4 Content-Transfer-Encoding:base64
+   6 Content-Transfer-Encoding: Quoted-Printable
+  25 Content-Transfer-Encoding: QUOTED-PRINTABLE
+ 347 Content-Transfer-Encoding: binary
+ 502 Content-Transfer-Encoding: 7BIT
+1164 Content-Transfer-Encoding: Quoted-printable
+12573 Content-Transfer-Encoding: 8bit
+12839 Content-Transfer-Encoding: 7bit
+15256 Content-Transfer-Encoding: base64
+76656 Content-Transfer-Encoding: quoted-printable
+
+
+
+======
+
+Plan:
+ - split out (some?) messages into separate .mbox files?
+   - maybe split by label?  personal only?
+   - longest Personal/... label?
+   - ???
+
